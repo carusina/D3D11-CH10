@@ -20,7 +20,7 @@ bool ExampleApp::Initialize() {
     if (!AppBase::Initialize())
         return false;
 
-    // 포인트로 빌보드 만들기
+    // 포인트로 빌보드 만들기 
     vector<Vector4> points;
     Vector4 p = {-4.0f, 1.0f, 2.0f, 1.0f};
     for (int i = 0; i < 5; i++) {

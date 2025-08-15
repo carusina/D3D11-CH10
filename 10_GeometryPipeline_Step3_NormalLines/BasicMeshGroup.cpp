@@ -42,6 +42,7 @@ void BasicMeshGroup::Initialize(ComPtr<ID3D11Device> &device,
         D3D11Utils::CreateVertexBuffer(device, meshData.vertices,
                                        newMesh->vertexBuffer);
         newMesh->m_indexCount = UINT(meshData.indices.size());
+        newMesh->m_vertexCount = UINT(meshData.vertices.size());
         D3D11Utils::CreateIndexBuffer(device, meshData.indices,
                                       newMesh->indexBuffer);
 
@@ -75,40 +76,13 @@ void BasicMeshGroup::Initialize(ComPtr<ID3D11Device> &device,
     D3D11Utils::CreatePixelShader(device, L"BasicPixelShader.hlsl",
                                   m_basicPixelShader);
 
-    // 노멀 벡터 그리기
-    m_normalLines = std::make_shared<Mesh>();
-
-    std::vector<Vertex> normalVertices;
-    std::vector<uint32_t> normalIndices;
-
-    // 여러 메쉬의 normal 들을 하나로 합치기
-    size_t offset = 0;
-    for (const auto &meshData : meshes) {
-        for (size_t i = 0; i < meshData.vertices.size(); i++) {
-
-            auto v = meshData.vertices[i];
-
-            v.texcoord.x = 0.0f; // 시작점 표시
-            normalVertices.push_back(v);
-
-            v.texcoord.x = 1.0f; // 끝점 표시
-            normalVertices.push_back(v);
-
-            normalIndices.push_back(uint32_t(2 * (i + offset)));
-            normalIndices.push_back(uint32_t(2 * (i + offset) + 1));
-        }
-        offset += meshData.vertices.size();
-    }
-
-    D3D11Utils::CreateVertexBuffer(device, normalVertices,
-                                   m_normalLines->vertexBuffer);
-    m_normalLines->m_indexCount = UINT(normalIndices.size());
-    D3D11Utils::CreateIndexBuffer(device, normalIndices,
-                                  m_normalLines->indexBuffer);
-
     D3D11Utils::CreateVertexShaderAndInputLayout(
         device, L"NormalVertexShader.hlsl", basicInputElements,
         m_normalVertexShader, m_basicInputLayout);
+
+    D3D11Utils::CreateGeometryShader(device, L"NormalGeometryShader.hlsl",
+                                     m_normalGeometryShader);
+
     D3D11Utils::CreatePixelShader(device, L"NormalPixelShader.hlsl",
                                   m_normalPixelShader);
 
@@ -134,14 +108,13 @@ void BasicMeshGroup::UpdateConstantBuffers(
 }
 
 void BasicMeshGroup::Render(ComPtr<ID3D11DeviceContext> &context) {
-
-    context->VSSetShader(m_basicVertexShader.Get(), 0, 0);
-    context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-    context->PSSetShader(m_basicPixelShader.Get(), 0, 0);
-
     UINT stride = sizeof(Vertex);
     UINT offset = 0;
+
     for (const auto &mesh : m_meshes) {
+        context->VSSetShader(m_basicVertexShader.Get(), 0, 0);
+        context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+        context->PSSetShader(m_basicPixelShader.Get(), 0, 0);
 
         context->VSSetConstantBuffers(
             0, 1, mesh->vertexConstantBuffer.GetAddressOf());
@@ -162,22 +135,19 @@ void BasicMeshGroup::Render(ComPtr<ID3D11DeviceContext> &context) {
                                   0);
         context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         context->DrawIndexed(mesh->m_indexCount, 0, 0);
-    }
-
-    // 노멀 벡터 그리기
-    if (m_drawNormals) {
-        context->VSSetShader(m_normalVertexShader.Get(), 0, 0);
-        ID3D11Buffer *pptr[2] = {m_vertexConstantBuffer.Get(),
-                                 m_normalVertexConstantBuffer.Get()};
-        context->VSSetConstantBuffers(0, 2, pptr);
-        context->PSSetShader(m_normalPixelShader.Get(), 0, 0);
-        context->IASetInputLayout(m_basicInputLayout.Get());
-        context->IASetVertexBuffers(
-            0, 1, m_normalLines->vertexBuffer.GetAddressOf(), &stride, &offset);
-        context->IASetIndexBuffer(m_normalLines->indexBuffer.Get(),
-                                  DXGI_FORMAT_R32_UINT, 0);
-        context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-        context->DrawIndexed(m_normalLines->m_indexCount, 0, 0);
+    
+        // 노멀 벡터 그리기
+        if (m_drawNormals) {
+            context->VSSetShader(m_normalVertexShader.Get(), 0, 0);
+            ID3D11Buffer *pptr[2] = {m_vertexConstantBuffer.Get(),
+                                     m_normalVertexConstantBuffer.Get()};
+            context->GSSetConstantBuffers(0, 2, pptr);
+            context->GSSetShader(m_normalGeometryShader.Get(), 0, 0);
+            context->PSSetShader(m_normalPixelShader.Get(), 0, 0);
+            context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+            context->Draw(mesh->m_vertexCount, 0);
+            context->GSSetShader(nullptr, 0, 0);
+        }    
     }
 }
 
