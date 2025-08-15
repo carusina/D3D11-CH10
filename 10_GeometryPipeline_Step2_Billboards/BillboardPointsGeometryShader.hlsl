@@ -31,9 +31,14 @@ void main(point GeometryShaderInput input[1], uint primID : SV_PrimitiveID,
 {
     float hw = 0.5 * width;
     
+    float4 up = float4(0.0, 1.0, 0.0, 0.0);
+    float4 front = float4(eyeWorld, 1.0) - input[0].pos;
+    front.w = 0.0; // Vector
+    float4 right = normalize(float4(cross(up.xyz, normalize(front.xyz)), 0.0));
+    
     PixelShaderInput output;
     
-    output.pos = input[0].pos + float4(-hw, -hw, 0.0, 0.0);
+    output.pos = input[0].pos - hw * right - hw * up;
     output.pos = mul(output.pos, view);
     output.pos = mul(output.pos, proj);
     output.texCoord = float2(0.0, 1.0);
@@ -41,7 +46,7 @@ void main(point GeometryShaderInput input[1], uint primID : SV_PrimitiveID,
     
     outputStream.Append(output);
 
-    output.pos = input[0].pos + float4(-hw, hw, 0.0f, 0.0f);
+    output.pos = input[0].pos - hw * right + hw * up;
     output.pos = mul(output.pos, view);
     output.pos = mul(output.pos, proj);
     output.texCoord = float2(0.0, 0.0);
@@ -49,7 +54,7 @@ void main(point GeometryShaderInput input[1], uint primID : SV_PrimitiveID,
     
     outputStream.Append(output);
     
-    output.pos = input[0].pos + float4(hw, -hw, 0.0f, 0.0f);
+    output.pos = input[0].pos + hw * right - hw * up;
     output.pos = mul(output.pos, view);
     output.pos = mul(output.pos, proj);
     output.texCoord = float2(1.0, 1.0);
@@ -57,7 +62,7 @@ void main(point GeometryShaderInput input[1], uint primID : SV_PrimitiveID,
     
     outputStream.Append(output);
     
-    output.pos = input[0].pos + float4(hw, hw, 0.0f, 0.0f);
+    output.pos = input[0].pos + hw * right + hw * up;
     output.pos = mul(output.pos, view);
     output.pos = mul(output.pos, proj);
     output.texCoord = float2(1.0, 0.0);

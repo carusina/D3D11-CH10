@@ -24,7 +24,6 @@ PixelShaderOutput main(PixelShaderInput input)
     //clip(pixelColor.a - 0.9f);
     
     // 픽셀의 값이 흰색에 가까운 배경 색이면 clip
-    //TODO: clip(...)
     //float i = (pixelColor.r + pixelColor.g + pixelColor.b) / 3.0;
     //clip((i > 0.8) ? -1 : 1);
     
